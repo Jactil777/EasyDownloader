@@ -1,0 +1,12 @@
+# Per-machine settings may contain private paths or Cookie file locations.
+config.json
+
+# Installers download these large, platform-specific executables on demand.
+tools/
+
+# Local downloads and runtime artifacts
+downloads/
+*.log
+.env
+.env.*
+.vercel/

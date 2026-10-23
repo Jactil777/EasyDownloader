@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f6f8fc">
+  <title>EasyDownloader</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="EasyDownloader 首页">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg></span>
+        <span>Easy<span>Downloader</span></span>
+      </a>
+      <div class="local-badge"><i></i> 多平台素材下载</div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">MULTI-PLATFORM MEDIA TOOL</div>
+      <h1>收藏灵感, <span>一贴即得.</span></h1>
+    </section>
+
+    <section class="download-card">
+      <div class="field-head">
+        <label for="urls">素材链接</label>
+        <span id="urlCount">0 / 10</span>
+      </div>
+      <div class="url-box">
+        <span class="link-icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg></span>
+        <textarea id="urls" rows="4" spellcheck="false" placeholder="粘贴 Instagram / Pinterest / Vimeo / X / 微信视频号等网页链接...&#10;每行一个链接 (最多 10 个)"></textarea>
+        <button class="paste-button" id="pasteButton" type="button">粘贴</button>
+      </div>
+      <section class="cookie-file-row" aria-label="已登录网站的 Cookie 文件">
+        <div class="cookie-file-copy"><strong>登录验证文件 (可选)</strong><small id="cookieFilePath">需要登录的网站, 请先在浏览器登录并导出 cookies.txt</small></div>
+        <div class="cookie-file-actions">
+          <button id="chooseCookies" class="secondary-button cookie-help-button" type="button" aria-describedby="cookieExportHelp">选择 cookies.txt<span id="cookieExportHelp" class="cookie-tooltip" role="tooltip"><strong>导出步骤</strong><span>1. 在 Chrome 扩展商店安装 <b>Get cookies.txt LOCALLY</b>.</span><span>2. 登录目标网站并打开视频页面.</span><span>3. 点击扩展中的 <b>Export All Cookies</b>, 格式选择 <b>Netscape</b>.</span><span>4. 保存后回到这里选择文件. Cookie 等同登录凭证, 请勿分享.</span></span></button>
+          <button id="clearCookies" class="secondary-button" type="button" hidden>取消选择</button>
+        </div>
+        <details class="cookie-help-mobile"><summary>首次使用? 查看导出步骤</summary><p>在 Chrome 扩展商店安装 <b>Get cookies.txt LOCALLY</b>, 登录目标网站并打开视频页面, 点击扩展中的 <b>Export All Cookies</b>, 格式选择 <b>Netscape</b>, 然后在这里选择导出的文件. Cookie 等同登录凭证, 请勿分享.</p></details>
+      </section>
+
+      <div class="destination">
+        <div class="folder-icon"><svg viewBox="0 0 24 24"><path d="M3 7.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2.5Z"/></svg></div>
+        <div><span>保存位置</span><strong id="folderPath">正在读取...</strong></div>
+        <button id="chooseFolder" class="secondary-button" type="button">更改</button>
+      </div>
+
+      <div id="toolWarning" class="tool-warning" hidden></div>
+      <button id="downloadButton" class="download-button" type="button"><span>开始下载</span><svg viewBox="0 0 24 24"><path d="M12 4v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg></button>
+    </section>
+
+    <section class="tasks-section">
+      <div class="section-title"><div><span>下载队列</span><small id="taskSummary">还没有任务</small></div><button id="openFolder" class="text-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2.5Z"/><path d="M12 11h5m0 0v5m0-5-6 6"/></svg><span>查看下载文件</span></button></div>
+      <div id="emptyState" class="empty-state"><div>↓</div><p>你的下载任务会出现在这里</p></div>
+      <div id="taskList" class="task-list"></div>
+    </section>
+
+  <footer><a class="brand footer-brand" href="/" aria-label="EasyDownloader"><span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg></span><span>Easy<span>Downloader</span></span></a><span class="copyright"><span class="copyright-symbol">©</span><span id="copyrightYear">2026</span><span>EasyDownloader</span><span class="copyright-rights">All rights reserved</span></span><span class="footer-note"><i></i> 视频、图片与更多素材, 一处管理</span></footer>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
