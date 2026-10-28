@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to build or repair, for example v0.1.2
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,6 +20,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,18 +34,45 @@ jobs:
 
       - name: Verify tag matches app version
         shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           $version = (Get-Content -Raw package.json | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_NAME -ne "v$version") {
-            throw "Tag $env:GITHUB_REF_NAME must match package version v$version"
+          if ($env:RELEASE_TAG -notmatch '^v\d+\.\d+\.\d+$' -or $env:RELEASE_TAG -ne "v$version") {
+            throw "Release tag $env:RELEASE_TAG must match package version v$version"
           }
 
-      - name: Build and publish installer and updater metadata
-        run: .\build-installer.ps1 -UpdateTools -PublishRelease
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build installer and updater metadata
+        run: .\build-installer.ps1 -UpdateTools
 
-      - name: Publish the completed GitHub Release
-        run: gh release edit "$env:GITHUB_REF_NAME" --draft=false
+      - name: Upload and verify release assets
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          $version = (Get-Content -Raw package.json | ConvertFrom-Json).version
+          $installer = "release\EasyDownloader-Setup-$version.exe"
+          $blockmap = "$installer.blockmap"
+          $metadata = 'release\latest.yml'
+          foreach ($asset in @($installer, $blockmap, $metadata)) {
+            if (-not (Test-Path -LiteralPath $asset)) { throw "Required release asset is missing: $asset" }
+          }
+
+          gh release view $env:RELEASE_TAG --repo Jactil777/EasyDownloader *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:RELEASE_TAG --repo Jactil777/EasyDownloader --draft --title "EasyDownloader $version" --notes "EasyDownloader $version"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the draft GitHub Release.' }
+          }
+
+          gh release upload $env:RELEASE_TAG $installer $blockmap $metadata --repo Jactil777/EasyDownloader --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload all installer and update metadata assets.' }
+
+          $uploadedAssets = gh release view $env:RELEASE_TAG --repo Jactil777/EasyDownloader --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not verify the uploaded GitHub Release assets.' }
+          foreach ($requiredAsset in @((Split-Path -Leaf $installer), (Split-Path -Leaf $blockmap), 'latest.yml')) {
+            if ($uploadedAssets -notcontains $requiredAsset) { throw "GitHub Release is missing required asset: $requiredAsset" }
+          }
+
+          gh release edit $env:RELEASE_TAG --repo Jactil777/EasyDownloader --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish the completed GitHub Release.' }
