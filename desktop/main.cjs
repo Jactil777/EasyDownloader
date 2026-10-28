@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -40,6 +40,13 @@ ipcMain.handle('download-update', async () => {
 ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall(false, true);
   return { state: 'installing' };
+});
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) shell.openExternal(url);
+    return { action: 'deny' };
+  });
 });
 
 app.setAppUserModelId('com.easydownloader.app');
@@ -158,7 +165,7 @@ async function createWindow() {
     minWidth: 760,
     minHeight: 620,
     show: false,
-    title: APP_NAME,
+    title: `${APP_NAME} v${app.getVersion()}`,
     backgroundColor: '#f4f6fc',
     autoHideMenuBar: true,
     webPreferences: {
