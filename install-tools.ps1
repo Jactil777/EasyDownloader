@@ -57,4 +57,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not install the WeChat Channels parser.'
 & (Join-Path $wxBin 'wx-downloader.exe') --version
 if ($LASTEXITCODE -ne 0) { throw 'The WeChat Channels parser did not start correctly.' }
 
+# These are installation-only artifacts; the installed tool environment does not need them at runtime.
+$uvCache = Join-Path $wxRoot 'cache'
+if (Test-Path -LiteralPath $uvCache) { Remove-Item -LiteralPath $uvCache -Recurse -Force }
+if (Test-Path -LiteralPath $uvExe) { Remove-Item -LiteralPath $uvExe -Force }
+
 Write-Host 'All tools are ready.' -ForegroundColor Green

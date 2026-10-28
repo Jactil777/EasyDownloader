@@ -1,10 +1,75 @@
 {
-  "name": "local-downloader",
+  "name": "easy-downloader",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jactil777/EasyDownloader.git"
+  },
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check web/app.js"
+    "desktop": "electron .",
+    "check": "node --check server.mjs && node --check web/app.js && node --check desktop/main.cjs",
+    "build:installer": "powershell -ExecutionPolicy Bypass -File .\\build-installer.ps1"
+  },
+  "main": "desktop/main.cjs",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.easydownloader.app",
+    "productName": "EasyDownloader",
+    "asar": true,
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server.mjs",
+        "to": "app/server.mjs"
+      },
+      {
+        "from": "web",
+        "to": "app/web"
+      },
+      {
+        "from": "tools",
+        "to": "tools"
+      },
+      {
+        "from": "runtime",
+        "to": "runtime"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "EasyDownloader-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EasyDownloader"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Jactil777",
+        "repo": "EasyDownloader"
+      }
+    ]
   }
 }

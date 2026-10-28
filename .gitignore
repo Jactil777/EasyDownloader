@@ -3,6 +3,9 @@ config.json
 
 # Installers download these large, platform-specific executables on demand.
 tools/
+runtime/
+node_modules/
+release/
 
 # Local downloads and runtime artifacts
 downloads/

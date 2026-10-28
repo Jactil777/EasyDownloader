@@ -3,10 +3,12 @@ const elements = {
   urls: $('#urls'), urlCount: $('#urlCount'), folderPath: $('#folderPath'),
   chooseFolder: $('#chooseFolder'), chooseCookies: $('#chooseCookies'), clearCookies: $('#clearCookies'), cookieFilePath: $('#cookieFilePath'),
   pasteButton: $('#pasteButton'), downloadButton: $('#downloadButton'),
-  openFolder: $('#openFolder'), taskList: $('#taskList'), emptyState: $('#emptyState'),
-  taskSummary: $('#taskSummary'), toolWarning: $('#toolWarning'), toast: $('#toast')
+  openFolder: $('#openFolder'), clearHistory: $('#clearHistory'), taskList: $('#taskList'), emptyState: $('#emptyState'),
+  taskSummary: $('#taskSummary'), toolWarning: $('#toolWarning'), toast: $('#toast'), updateButton: $('#updateButton')
 };
 let config = {};
+let updateState = 'idle';
+let activeTaskCount = 0;
 
 function toast(message) {
   elements.toast.textContent = message;
@@ -57,7 +59,33 @@ function renderTasks(tasks) {
       ${logs.length ? `<details class="task-log"><summary>查看详细日志 (${logs.length})</summary><pre>${escapeHtml(logs.join('\n'))}</pre></details>` : ''}</article>`;
   }).join('');
   const active = tasks.filter(task => !['complete', 'error', 'cancelled'].includes(task.status)).length;
+  activeTaskCount = active;
+  elements.clearHistory.hidden = !tasks.some(task => ['complete', 'error', 'cancelled'].includes(task.status));
   elements.taskSummary.textContent = tasks.length ? `${tasks.length} 个任务${active ? `, ${active} 个进行中` : ''}` : '还没有任务';
+}
+
+function renderUpdate(status) {
+  updateState = status.state;
+  const button = elements.updateButton;
+  button.disabled = ['checking', 'downloading', 'installing'].includes(updateState);
+  button.title = status.message || '';
+  if (updateState === 'available') {
+    button.hidden = false;
+    button.textContent = `下载更新 v${status.version}`;
+  } else if (updateState === 'downloading') {
+    button.hidden = false;
+    button.textContent = `正在下载更新 ${status.percent || 0}%`;
+  } else if (updateState === 'downloaded') {
+    button.hidden = false;
+    button.disabled = false;
+    button.textContent = '重启并完成更新';
+  } else if (updateState === 'error') {
+    button.hidden = false;
+    button.disabled = false;
+    button.textContent = '更新检查失败 · 重试';
+  } else {
+    button.hidden = true;
+  }
 }
 
 async function init() {
@@ -79,6 +107,7 @@ async function init() {
     const events = new EventSource('/api/events');
     events.onmessage = event => renderTasks(JSON.parse(event.data));
   } catch (error) { toast(error.message); }
+  window.easyDownloader?.onUpdateStatus(renderUpdate);
 }
 
 elements.urls.addEventListener('input', refreshCount);
@@ -121,6 +150,27 @@ elements.downloadButton.addEventListener('click', async () => {
   finally { elements.downloadButton.disabled = false; }
 });
 elements.openFolder.addEventListener('click', () => api('/api/open-folder', { method: 'POST', body: '{}' }).catch(error => toast(error.message)));
+elements.clearHistory.addEventListener('click', async () => {
+  if (!window.confirm('清空下载记录？不会删除已下载的文件。')) return;
+  try {
+    await api('/api/tasks/history', { method: 'DELETE' });
+    toast('下载记录已清空');
+  } catch (error) { toast(error.message); }
+});
+elements.updateButton.addEventListener('click', async () => {
+  try {
+    if (updateState === 'available') {
+      await window.easyDownloader?.downloadUpdate();
+      toast('正在下载更新，请稍候');
+    } else if (updateState === 'downloaded') {
+      if (activeTaskCount && !window.confirm(`还有 ${activeTaskCount} 个下载任务在运行。更新会停止这些任务，仍要继续吗？`)) return;
+      await window.easyDownloader?.installUpdate();
+    } else {
+      await window.easyDownloader?.checkForUpdate();
+      toast('正在检查更新');
+    }
+  } catch (error) { toast(error.message || '更新操作失败'); }
+});
 elements.taskList.addEventListener('click', event => {
   const id = event.target.dataset.cancel;
   if (id) api(`/api/tasks/${id}/cancel`, { method: 'POST', body: '{}' }).catch(error => toast(error.message));

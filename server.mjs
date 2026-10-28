@@ -8,13 +8,18 @@ import { randomUUID } from 'node:crypto';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.join(ROOT, 'web');
-const TOOLS = path.join(ROOT, 'tools');
+const TOOLS = process.env.EASY_DOWNLOADER_TOOLS_DIR || path.join(ROOT, 'tools');
 const WX_TOOL = path.join(TOOLS, 'wx-downloader', 'bin', 'wx-downloader.exe');
-const CONFIG_FILE = path.join(ROOT, 'config.json');
+const DATA_DIR = process.env.EASY_DOWNLOADER_DATA_DIR || ROOT;
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const HISTORY_FILE = path.join(DATA_DIR, 'task-history.json');
 const PORT = Number(process.env.LOCAL_DOWNLOADER_PORT || 8765);
 const HOST = '127.0.0.1';
 const tasks = new Map();
 const clients = new Set();
+const HISTORY_LIMIT = 200;
+let historySaveTimer;
+let isShuttingDown = false;
 const WX_HOME = path.join(process.env.LOCALAPPDATA || ROOT, 'LocalDownloader', 'wx-channels');
 
 const defaults = {
@@ -59,10 +64,64 @@ function publicTask(task) {
   return safe;
 }
 
+function pruneTaskHistory() {
+  const finished = [...tasks.values()].filter(task => ['complete', 'error', 'cancelled'].includes(task.status));
+  for (const task of finished.slice(0, Math.max(0, finished.length - HISTORY_LIMIT))) tasks.delete(task.id);
+}
+
+function saveTaskHistoryNow() {
+  pruneTaskHistory();
+  const all = [...tasks.values()];
+  const active = all.filter(task => !['complete', 'error', 'cancelled'].includes(task.status));
+  const finished = all.filter(task => ['complete', 'error', 'cancelled'].includes(task.status)).slice(-HISTORY_LIMIT);
+  const snapshot = [...finished, ...active].map(({ process: _process, ...task }) => task);
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const temporary = `${HISTORY_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(snapshot), 'utf8');
+    fs.renameSync(temporary, HISTORY_FILE);
+  } catch (error) {
+    console.error(`Could not save task history: ${error.message}`);
+  }
+}
+
+function saveTaskHistory() {
+  clearTimeout(historySaveTimer);
+  historySaveTimer = setTimeout(() => {
+    saveTaskHistoryNow();
+  }, 250);
+  historySaveTimer.unref?.();
+}
+
+function loadTaskHistory() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
+    if (!Array.isArray(saved)) return;
+    for (const task of saved.slice(-HISTORY_LIMIT)) {
+      if (!task || typeof task.id !== 'string' || typeof task.url !== 'string') continue;
+      if (!['complete', 'error', 'cancelled'].includes(task.status)) {
+        task.status = 'error';
+        task.message = '应用关闭前任务未完成';
+        task.errorHint = task.message;
+        task.finishedAt = new Date().toISOString();
+        task.logs = [...(Array.isArray(task.logs) ? task.logs : []), 'Task interrupted when EasyDownloader closed.'].slice(-160);
+      }
+      tasks.set(task.id, task);
+    }
+    if (saved.some(task => task && !['complete', 'error', 'cancelled'].includes(task.status))) saveTaskHistory();
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.error(`Could not load task history: ${error.message}`);
+  }
+}
+
 function broadcast() {
+  pruneTaskHistory();
   const payload = `data: ${JSON.stringify([...tasks.values()].map(publicTask))}\n\n`;
   for (const client of clients) client.write(payload);
+  saveTaskHistory();
 }
+
+loadTaskHistory();
 
 function executable(name) {
   const local = path.join(TOOLS, `${name}.exe`);
@@ -417,6 +476,14 @@ const server = http.createServer(async (req, res) => {
       req.on('close', () => clients.delete(res));
       return;
     }
+    if (req.method === 'DELETE' && url.pathname === '/api/tasks/history') {
+      for (const [id, task] of tasks) {
+        if (['complete', 'error', 'cancelled'].includes(task.status)) tasks.delete(id);
+      }
+      saveTaskHistoryNow();
+      broadcast();
+      return json(res, 200, { ok: true });
+    }
     if (req.method === 'POST' && url.pathname === '/api/downloads') return json(res, 202, { tasks: startDownload(await body(req)) });
     if (req.method === 'POST' && url.pathname === '/api/select-folder') {
       const selected = await runPowerShell("Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description='Choose download folder'; if($d.ShowDialog() -eq 'OK'){[Console]::OutputEncoding=[Text.UTF8Encoding]::UTF8; Write-Output $d.SelectedPath}");
@@ -454,10 +521,35 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   const appUrl = `http://${HOST}:${PORT}`;
   console.log(`EasyDownloader is running at ${appUrl}`);
-  setTimeout(() => spawn('cmd.exe', ['/c', 'start', '', appUrl], { detached: true, windowsHide: true }).unref(), 350);
+  if (process.env.EASY_DOWNLOADER_NO_BROWSER !== '1') {
+    setTimeout(() => spawn('cmd.exe', ['/c', 'start', '', appUrl], { detached: true, windowsHide: true }).unref(), 350);
+  }
 });
 
-process.on('SIGINT', () => {
-  for (const task of tasks.values()) if (task.process?.pid) task.process.kill();
-  server.close(() => process.exit(0));
-});
+function shutdown() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  clearTimeout(historySaveTimer);
+  for (const task of tasks.values()) {
+    if (['complete', 'error', 'cancelled'].includes(task.status)) continue;
+    task.status = 'cancelled';
+    task.message = '客户端关闭，任务已停止';
+    task.finishedAt = new Date().toISOString();
+  }
+  saveTaskHistoryNow();
+  const stopping = [...tasks.values()].map(task => new Promise(resolve => {
+    const pid = task.process?.pid;
+    if (process.platform === 'win32' && pid) {
+      const killer = spawn('taskkill.exe', ['/pid', String(pid), '/t', '/f'], { windowsHide: true, stdio: 'ignore' });
+      killer.once('error', () => { task.process?.kill?.(); resolve(); });
+      killer.once('close', () => resolve());
+    } else {
+      task.process?.kill?.();
+      resolve();
+    }
+  }));
+  Promise.all(stopping).finally(() => server.close(() => process.exit(0)));
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

@@ -16,7 +16,7 @@
         <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg></span>
         <span>Easy<span>Downloader</span></span>
       </a>
-      <div class="local-badge"><i></i> 多平台素材下载</div>
+      <div class="topbar-actions"><button id="updateButton" class="update-button" type="button" hidden>检查更新</button><div class="local-badge"><i></i> 多平台素材下载</div></div>
     </header>
 
     <section class="hero">
@@ -54,7 +54,7 @@
     </section>
 
     <section class="tasks-section">
-      <div class="section-title"><div><span>下载队列</span><small id="taskSummary">还没有任务</small></div><button id="openFolder" class="text-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2.5Z"/><path d="M12 11h5m0 0v5m0-5-6 6"/></svg><span>查看下载文件</span></button></div>
+      <div class="section-title"><div><span>下载队列</span><small id="taskSummary">还没有任务</small></div><div class="task-actions"><button id="clearHistory" class="text-button" type="button" hidden>清空记录</button><button id="openFolder" class="text-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2.5Z"/><path d="M12 11h5m0 0v5m0-5-6 6"/></svg><span>查看下载文件</span></button></div></div>
       <div id="emptyState" class="empty-state"><div>↓</div><p>你的下载任务会出现在这里</p></div>
       <div id="taskList" class="task-list"></div>
     </section>
