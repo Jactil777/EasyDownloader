@@ -178,6 +178,10 @@ async function createWindow() {
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('update-status', updateStatus);
   });
+  mainWindow.webContents.on('page-title-updated', event => {
+    event.preventDefault();
+    mainWindow?.setTitle(`${APP_NAME} v${app.getVersion()}`);
+  });
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('closed', () => {
     mainWindow = null;
