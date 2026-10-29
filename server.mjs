@@ -321,7 +321,7 @@ function runTask(task, engine, config) {
   try {
     child = spawn(spec.command, spec.args, {
       windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
+      env: { ...process.env, PATH: [TOOLS, process.env.PATH || ''].join(path.delimiter), PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
     });
   } catch (error) {
     finishTask(task, engine, config, 1, error.message);

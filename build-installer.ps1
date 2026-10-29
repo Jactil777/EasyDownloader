@@ -24,6 +24,7 @@ $requiredTools = @(
   'tools\yt-dlp.exe',
   'tools\gallery-dl.exe',
   'tools\ffmpeg.exe',
+  'tools\phantomjs.exe',
   'tools\wx-downloader\bin\wx-downloader.exe'
 )
 $toolsMissing = @($requiredTools | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -gt 0

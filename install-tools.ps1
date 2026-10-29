@@ -32,6 +32,21 @@ Copy-Item -LiteralPath $ffmpeg.FullName -Destination (Join-Path $toolDir 'ffmpeg
 Remove-Item -LiteralPath $archive -Force
 Remove-Item -LiteralPath $extract -Recurse -Force
 
+Write-Host 'Preparing PhantomJS...'
+$phantomZip = Join-Path $env:TEMP ('easydownloader-phantom-' + [guid]::NewGuid().ToString('N') + '.zip')
+$phantomExtract = Join-Path $env:TEMP ('easydownloader-phantom-' + [guid]::NewGuid().ToString('N'))
+try {
+  Download-File 'https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-windows.zip' $phantomZip
+  if ((Get-FileHash -LiteralPath $phantomZip -Algorithm SHA256).Hash -ne 'D9FB05623D6B26D3654D008EAB3ADAFD1F6350433DFD16138C46161F42C7DCC8') { throw 'PhantomJS archive checksum mismatch.' }
+  Expand-Archive -LiteralPath $phantomZip -DestinationPath $phantomExtract -Force
+  $phantomExe = Join-Path $phantomExtract 'phantomjs-2.1.1-windows\bin\phantomjs.exe'
+  if (-not (Test-Path -LiteralPath $phantomExe)) { throw 'phantomjs.exe was not found in the verified archive.' }
+  Copy-Item -LiteralPath $phantomExe -Destination (Join-Path $toolDir 'phantomjs.exe') -Force
+} finally {
+  if (Test-Path -LiteralPath $phantomZip) { Remove-Item -LiteralPath $phantomZip -Force }
+  if (Test-Path -LiteralPath $phantomExtract) { Remove-Item -LiteralPath $phantomExtract -Recurse -Force }
+}
+
 Write-Host 'Installing the optional WeChat Channels parser...'
 $wxRoot = Join-Path $toolDir 'wx-downloader'
 $uvZip = Join-Path $env:TEMP 'local-downloader-uv.zip'
